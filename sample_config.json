@@ -1,0 +1,27 @@
+{
+  "str_field": "sample string",
+  "int_field": 4,
+  "list_str_field": [1, 2, 3, 4, 5],
+  "dict_str_str_field": {
+    "key1": "value1",
+    "key2": "value2",
+    "key3": "value3"
+  },
+  "inner_config_field": {"str_field": "sample string of inner config", "int_field": 5},
+  "list_inner_config_field": [
+    {"str_field": "sample string of inner config", "int_field": 1},
+    {"str_field": "sample string of inner config", "int_field": 2},
+    {"str_field": "sample string of inner config", "int_field": 3}
+  ],
+  "dict_inner_config_field": {
+    "first": {"str_field": "sample string of inner config", "int_field": 4},
+    "second": {"str_field": "sample string of inner config", "int_field": 5},
+    "third": {"str_field": "sample string of inner config", "int_field": 6}
+  },
+  "list_list_int_field": [
+    [1, 2, 3],
+    [1, 2, 3],
+    [1, 2, 3],
+    [1, 2, 3]
+  ]
+}
