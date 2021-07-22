@@ -23,5 +23,14 @@
     [1, 2, 3],
     [1, 2, 3],
     [1, 2, 3]
+  ],
+  "optional_field": 5,
+  "optional_list": [1, 2, 3, 4, 5],
+  "optional_dict": {"1":  1, "2":  2, "3": 3, "4":  4, "5":  5},
+  "optional_inner_config": {"str_field": "sample string of inner config", "int_field": 5},
+  "optional_list_inner_config": [
+    {"str_field": "sample string of inner config", "int_field": 1},
+    {"str_field": "sample string of inner config", "int_field": 2},
+    {"str_field": "sample string of inner config", "int_field": 3}
   ]
 }
