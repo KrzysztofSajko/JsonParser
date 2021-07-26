@@ -8,9 +8,7 @@ JsonParserSubclass = TypeVar('JsonParserSubclass', bound='JsonParser')
 
 
 def is_required(field: Field) -> bool:
-    """
-    Check if the field of a dataclass is required.
-    """
+    """Check if the field of a dataclass is required."""
     default_value_missing: bool = type(field.default) == _MISSING_TYPE
     default_factory_missing: bool = type(field.default_factory) == _MISSING_TYPE
     return not is_optional(field) and default_factory_missing and default_value_missing
@@ -67,7 +65,7 @@ def contains_json_parser(field: Field) -> bool:
 
 
 class ParsingStrategies:
-    """Class containing methods for parsing json depending on what type currently parsed field is."""
+    """Class containing methods for parsing json dictionary, depending on what type currently parsed field is."""
 
     @classmethod
     def get_parsing_method(cls, field: Field) -> Callable[[Field, dict, Optional[dict]], Any]:
@@ -117,11 +115,18 @@ class JsonParser(ABC):
     """
 
     @classmethod
-    def from_json(cls, json: dict, translate_types: Optional[dict] = None) -> JsonParserSubclass:
+    def from_json(cls, json_dict: dict[str, Any], translate_types: Optional[dict[str, type]] = None) -> JsonParserSubclass:
         """
-        Parses json string and returns an instance of the class.
+        Takes in dictionary returned by json.load(s) function and creates an instance of dataclass that called this method.
+        This happens recursively so if dataclass contains fields that are subclasses of JsonParser, apropriate objects will also be created.
+        Fields are considered required if they have no default value or factory and are not of type Optional.
+        
         The required fields are defined as those that have no default value or default factory.
         If a required field is missing from json string KeyError will be thrown.
+        :param json_dict: dictionary containg data from which the class is to be created
+        :param translate_types: contains translations that are to be applied during pasrsing, usefull for fields with abstract types which instaces couldn't be otherwise created
+        :returns: Instance of the class.
+        "raises KeyError: raised when required field is missing in json_dict
         """
         parser_type: type = translate_types[cls.__name__] if translate_types is not None and cls.__name__ in translate_types else cls
         
@@ -129,16 +134,16 @@ class JsonParser(ABC):
 
         field: Field
         for field in fields(parser_type):
-            if is_optional(field) and field.name not in json:
+            if is_optional(field) and field.name not in json_dict:
                 initializer[field.name] = None
                 continue
 
-            if field.name not in json and is_required(field):
+            if field.name not in json_dict and is_required(field):
                 raise KeyError(f"Json passed to {parser_type.__name__} does not contain required key: \"{field.name}\"")
 
-            if field.name not in json and not is_optional(field):
+            if field.name not in json_dict and not is_optional(field):
                 continue
 
-            initializer[field.name] = ParsingStrategies.get_parsing_method(field)(field, json, translate_types)     
+            initializer[field.name] = ParsingStrategies.get_parsing_method(field)(field, json_dict, translate_types)     
              
         return parser_type(**initializer)
