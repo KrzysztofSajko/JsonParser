@@ -70,7 +70,7 @@ class ParsingStrategies:
     """Class containing methods for parsing json depending on what type currently parsed field is."""
 
     @classmethod
-    def get_parsing_method(cls, field: Field) -> Callable[[Field, dict], Any]:
+    def get_parsing_method(cls, field: Field) -> Callable[[Field, dict, Optional[dict]], Any]:
         """Determines what parsing method to choose for given field and returns it."""
         if is_list(field) and contains_json_parser(field):
             return cls.parse_json_parser_list
@@ -78,33 +78,32 @@ class ParsingStrategies:
         if is_dict(field) and contains_json_parser(field):
             return cls.parse_json_parser_dict
 
-        # in case types like list[str] that cause error in issubclass
         if is_json_parser_subclass(field):
             return cls.parse_json_parser_object
 
         return cls.parse_base_type
 
     @staticmethod
-    def parse_json_parser_list(field: Field, json: dict) -> list[JsonParserSubclass]:
+    def parse_json_parser_list(field: Field, json: dict, translate_types: Optional[dict] = None) -> list[JsonParserSubclass]:
         """Parse a list of JsonParser objects."""
         # TODO: type detecting is recursive but parsing is not
         inner_type: type = get_inner_type(field.type)
-        return [inner_type.from_json(item) for item in json[field.name]]
+        return [inner_type.from_json(item, translate_types) for item in json[field.name]]
 
     @staticmethod
-    def parse_json_parser_dict(field: Field, json: dict) -> dict[Union[str, int], JsonParserSubclass]:
+    def parse_json_parser_dict(field: Field, json: dict, translate_types: Optional[dict] = None) -> dict[Union[str, int], JsonParserSubclass]:
         """Parse a dict of JsonParser objects."""
         # TODO: type detecting is recursive but parsing is not
         inner_type: type = get_inner_type(field.type)
-        return {key: inner_type.from_json(value) for key, value in json[field.name].items()}
+        return {key: inner_type.from_json(value, translate_types) for key, value in json[field.name].items()}
 
     @staticmethod
-    def parse_json_parser_object(field: Field, json: dict) -> JsonParserSubclass:
+    def parse_json_parser_object(field: Field, json: dict, translate_types: Optional[dict] = None) -> JsonParserSubclass:
         """Parse a JsonParser object"""
-        return clear_union(field.type).from_json(json[field.name])
+        return clear_union(field.type).from_json(json[field.name], translate_types)
 
     @staticmethod
-    def parse_base_type(field: Field, json: dict):
+    def parse_base_type(field: Field, json: dict, translate_types: Optional[dict] = None):
         """Parse a type that is neither JsonParser nor a collection containing it"""
         return json[field.name]
 
@@ -118,25 +117,28 @@ class JsonParser(ABC):
     """
 
     @classmethod
-    def from_json(cls, json: dict) -> Optional[JsonParserSubclass]:
+    def from_json(cls, json: dict, translate_types: Optional[dict] = None) -> JsonParserSubclass:
         """
         Parses json string and returns an instance of the class.
         The required fields are defined as those that have no default value or default factory.
         If a required field is missing from json string KeyError will be thrown.
         """
+        parser_type: type = translate_types[cls.__name__] if translate_types is not None and cls.__name__ in translate_types else cls
+        
         initializer: dict = {}
 
         field: Field
-        for field in fields(cls):
+        for field in fields(parser_type):
             if is_optional(field) and field.name not in json:
                 initializer[field.name] = None
                 continue
 
             if field.name not in json and is_required(field):
-                raise KeyError(f"Json passed to {cls.__name__} does not contain required key: \"{field.name}\"")
+                raise KeyError(f"Json passed to {parser_type.__name__} does not contain required key: \"{field.name}\"")
 
             if field.name not in json and not is_optional(field):
                 continue
 
-            initializer[field.name] = ParsingStrategies.get_parsing_method(field)(field, json)
-        return cls(**initializer)
+            initializer[field.name] = ParsingStrategies.get_parsing_method(field)(field, json, translate_types)     
+             
+        return parser_type(**initializer)
