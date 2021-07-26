@@ -38,6 +38,11 @@ def is_optional(field: Field) -> bool:
     return type(None) in get_args(field.type)
 
 
+def is_json_parser_subclass(field: Field) -> bool:
+    """Check if the field type is directly a subclass of JsonParser, can be optional."""
+    return get_origin(clear_union(field.type)) is None and issubclass(clear_union(field.type), JsonParser)
+
+
 def get_inner_type(composite_type: type) -> Optional[type]:
     """
     Extract type of an item from collection:
@@ -74,7 +79,7 @@ class ParsingStrategies:
             return cls.parse_json_parser_dict
 
         # in case types like list[str] that cause error in issubclass
-        if get_origin(field.type) is None and issubclass(field.type, JsonParser):
+        if is_json_parser_subclass(field):
             return cls.parse_json_parser_object
 
         return cls.parse_base_type
@@ -96,7 +101,7 @@ class ParsingStrategies:
     @staticmethod
     def parse_json_parser_object(field: Field, json: dict) -> JsonParserSubclass:
         """Parse a JsonParser object"""
-        return field.type.from_json(json[field.name])
+        return clear_union(field.type).from_json(json[field.name])
 
     @staticmethod
     def parse_base_type(field: Field, json: dict):
